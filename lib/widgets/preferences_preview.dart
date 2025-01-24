@@ -1,5 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../printer/print_job_service.dart';
+import '../printer/printer_allocation.dart';
 import '../printer/save_printer.dart';
 
 class EditablePreferencesScreen extends StatefulWidget {
@@ -24,11 +29,81 @@ class _EditablePreferencesScreenState extends State<EditablePreferencesScreen> {
   int selectedPaperSize = 1;
   int selectedSides = 1;
 
+  String? _selectedPrinter;  // Variable to hold the selected printer
+  List<String> _printerOptions = []; // List of printers
+
+
   @override
   void initState() {
     super.initState();
     updateControllers();
+    _fetchPrinterList();
   }
+
+  // Inside your current page (where the UI is handled)
+
+  void _processPrintJob() {
+    int startPage = int.parse(startPageController.text);
+    int endPage = int.parse(endPageController.text);
+    int copies = int.parse(copiesController.text);
+
+    bool colorScheme = isColor;
+    String paperSize = ["A4", "A3", "Legal", "Letter"][selectedPaperSize - 1];
+    String sides = ["Front Only", "Both Sides", "Even Sides", "Odd Sides"][selectedSides - 1];
+    String printer = _selectedPrinter ?? "Default Printer";
+
+    // Call the PrintJobService's static method to process the job
+    PrintJobService.processPrintJob(
+      startPage: startPage,
+      endPage: endPage,
+      copies: copies,
+      isColor: colorScheme,
+      selectedPaperSize: selectedPaperSize,
+      selectedSides: selectedSides,
+      printerOptions: _printerOptions,
+      fileUrl: widget.fileUrl,
+      context: context,
+    );
+  }
+
+
+
+
+
+  // Method to fetch printer list from Firestore
+  void _fetchPrinterList() async {
+    try {
+      String userId = FirebaseAuth.instance.currentUser!.uid; // Ensure user is authenticated
+      DocumentReference userDoc = FirebaseFirestore.instance.collection('Users').doc(userId);
+
+      // Reference to the subcollection "printerList"
+      CollectionReference printerList = userDoc.collection('printerList');
+
+      // Fetch the data
+      QuerySnapshot snapshot = await printerList.get();
+
+      // Convert the data into a list of maps
+      List<Map<String, dynamic>> printers = snapshot.docs.map((doc) {
+        return {
+          'id': doc.id, // Include the document ID if needed
+          ...doc.data() as Map<String, dynamic>,
+        };
+      }).toList();
+
+      setState(() {
+        _printerOptions = printers.map((printer) => printer['name'] as String).toList();
+        if (_printerOptions.isNotEmpty) {
+          _selectedPrinter = _printerOptions[0]; // Default selection
+        }
+      });
+
+    } catch (e) {
+      print("Error fetching printer list: $e");
+      // Handle error here, show message to user
+    }
+  }
+
+
 
   @override
   void didUpdateWidget(covariant EditablePreferencesScreen oldWidget) {
@@ -127,6 +202,7 @@ class _EditablePreferencesScreenState extends State<EditablePreferencesScreen> {
               indent: 5, // Optional: adds space from the left side
               endIndent: 5, // Optional: adds space from the right side
             ),
+            buildAllocatedPrinterField(),
             const SizedBox(height: 20),
             Container(
               padding: EdgeInsets.all(16.0),
@@ -199,7 +275,9 @@ class _EditablePreferencesScreenState extends State<EditablePreferencesScreen> {
                   SizedBox(width: 16),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        _processPrintJob(); // Process the print job when clicked
+                      },
                       child: Text(
                         'Print',
                         style: TextStyle(color: Colors.white), // Text color
@@ -209,11 +287,10 @@ class _EditablePreferencesScreenState extends State<EditablePreferencesScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(30), // Circular button
                         ),
-                        backgroundColor: Colors.blue, // Text color (already set)
+                        backgroundColor: Colors.blue, // Button color
                       ),
                     ),
                   ),
-
                 ],
               ),
             ),
@@ -298,6 +375,74 @@ class _EditablePreferencesScreenState extends State<EditablePreferencesScreen> {
               Text("Color",
                   style: TextStyle(color: Colors.black, fontSize: 16)),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildAllocatedPrinterField() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            "Allocated Printer",
+            style: TextStyle(
+              fontSize: 18, // Smaller title font size
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          SizedBox(height: 5), // Adjusted spacing
+          Padding(
+            padding: const EdgeInsets.all(5.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black38,
+                borderRadius: BorderRadius.circular(6.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.3), // Subtle shadow
+                    blurRadius: 5.0, // Shadow spread
+                    offset: Offset(0, 2), // Shadow direction
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 5.0),
+                child: _printerOptions.isEmpty
+                    ? Center(child: CircularProgressIndicator()) // Show loading indicator while fetching
+                    : DropdownButton<String>(
+                  value: _selectedPrinter,
+                  hint: Text(
+                    'Select Printer',
+                    style: TextStyle(color: Colors.black.withOpacity(0.6)),
+                  ),
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      _selectedPrinter = newValue;
+                    });
+                  },
+                  underline: SizedBox(),
+                  isExpanded: true,
+                  icon: Icon(Icons.arrow_drop_down, color: Colors.blue),
+                  items: _printerOptions.map((printer) {
+                    return DropdownMenuItem<String>(
+                      value: printer,
+                      child: Text(
+                        printer,
+                        style: TextStyle(
+                          fontSize: 12.0,
+                          color: Colors.white,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
           ),
         ],
       ),

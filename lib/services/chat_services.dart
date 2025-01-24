@@ -29,6 +29,7 @@ class ChatService {
     });
   }
 
+
   // send message
   Future<void> sendMessage(String receiverId, message) async {
     // get current user info

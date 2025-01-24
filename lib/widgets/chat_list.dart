@@ -2,11 +2,6 @@ import 'package:chats_windows/colors.dart';
 import 'package:chats_windows/widgets/preferences_preview.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:chats_windows/info.dart';
-import 'package:chats_windows/widgets/my_card.dart';
-import 'package:chats_windows/widgets/sender_message_card.dart';
-import 'package:fluttertoast/fluttertoast.dart';
-
 import '../auth/auth_service.dart';
 import '../services/chat_services.dart';
 import 'chat_bubble.dart';
@@ -31,6 +26,17 @@ class _ChatListState extends State<ChatList> {
   bool _isPreferencesVisible = false;
   Map<String, dynamic> _preferencesData = {};
   String _fileUrl = '';
+
+  void sendMessage() async {
+    if (_messageController.text.isNotEmpty) {
+      await _chatService.sendMessage(
+        widget.receiverID,
+        _messageController.text,
+      );
+      _messageController.clear();
+    }
+  }
+
 
   @override
   void dispose() {
@@ -201,7 +207,7 @@ class _ChatListState extends State<ChatList> {
             ),
             margin: const EdgeInsets.only(right: 5),
             child: IconButton(
-              onPressed: () {},
+              onPressed: sendMessage,
               icon: Icon(Icons.send_sharp),
             ),
           ),

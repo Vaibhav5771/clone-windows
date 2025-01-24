@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:chats_windows/colors.dart';
 
+import '../auth/auth_service.dart';
+
 class WebProfileBar extends StatelessWidget {
   const WebProfileBar({Key? key}) : super(key: key);
 
@@ -26,6 +28,17 @@ class WebProfileBar extends StatelessWidget {
             'assets/Logo.svg', // Path to your SVG file
             height: 36, // Adjust height as needed
           ),
+          IconButton(
+            icon: Icon(Icons.logout),
+            onPressed: () async {
+              // Call signOut from AuthService
+              await AuthService().signOut();
+
+              // Optionally, navigate to the login screen or show a message
+              Navigator.pushReplacementNamed(context, '/login');
+            },
+          )
+
         ],
       ),
     );
