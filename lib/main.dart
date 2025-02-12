@@ -10,7 +10,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: FirebaseOptions(
-      apiKey: "AIzaSyA7nZviOP94RskqTYabMiU00eOujYRhlzE",
+      apiKey: "API_KEY",
       authDomain: "chats-4d7a9.firebaseapp.com",
       projectId: "chats-4d7a9",
       storageBucket: "chats-4d7a9.appspot.com", // ✅ Corrected storage bucket URL
